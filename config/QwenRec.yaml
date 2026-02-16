@@ -1,0 +1,45 @@
+# QwenRec Configuration - Optimized for A100 80GB GPU
+
+# SASRec base parameters - LARGER
+n_layers: 4  # Increased from 2
+n_heads: 8   # Increased from 2
+hidden_size: 512  # Increased from 300
+inner_size: 1024  # Increased from 256
+hidden_dropout_prob: 0.3
+attn_dropout_prob: 0.3
+hidden_act: 'gelu'
+layer_norm_eps: 1e-12
+initializer_range: 0.02
+loss_type: 'CE'
+
+# PLM configuration - Qwen2-7B
+plm_suffix: Qwen/Qwen2-7B.feature
+plm_size: 3584  # Actual dimension from file
+adaptor_dropout_prob: 0.2
+adaptor_layers: [3584, 512]  # Match hidden_size
+
+# Training configuration - A100 OPTIMIZED
+temperature: 0.07
+lambda: 0.001
+learning_rate: 0.001
+train_batch_size: 512  # Much larger (was 128)
+eval_batch_size: 4096  # Much larger (was 1024)
+epochs: 100
+stopping_step: 15
+
+# Optimizer
+optimizer: adamw
+weight_decay: 0.01
+
+# Hardware
+gpu_id: 0
+seed: 2023
+
+# # Logging - disable tensorboard to avoid disk quota
+tensorboard: false
+# checkpoint_dir: /scratch/satyamk_iitp/checkpoints
+
+# Evaluation
+metrics: ['Recall', 'NDCG']
+topk: [10, 50]
+valid_metric: Recall@10
