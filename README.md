@@ -2,7 +2,7 @@
 
 This directory contains implementation and benchmark scripts for sequential recommendation on the **Amazon Reviews 2023** dataset.
 
-## 📋 Overview
+##  Overview
 
 The workflow consists of three main steps:
 1.  **Data Preprocessing**: Downloading and splitting the Amazon dataset.
@@ -22,7 +22,7 @@ Optional for faster training:
 pip install flash-attn --no-build-isolation
 ```
 
-## 🚀 Usage Guide
+##  Usage Guide
 
 ### 1. Data Processing (`dataset/`)
 
@@ -78,7 +78,7 @@ python run_with_checkpoints.py \
 *   `--resume`: Resume training. Use `auto` to resume from the last checkpoint.
 *   `--checkpoint_dir`: Custom directory to save model checkpoints.
 
-## 🤖 Supported Models
+##  Supported Models
 
 The following models are supported (configurations in `config/`):
 
@@ -91,7 +91,7 @@ The following models are supported (configurations in `config/`):
 *   **DistilRoBERTaRec**: Encoder-based recommender
 *   **FlanT5SmallRec**: Encoder-Decoder recommender
 
-## 📂 Directory Structure
+##  Directory Structure
 
 *   `dataset/`: Scripts for data download, processing, and feature generation.
 *   `model/`: Model implementations (inheriting from RecBole).
