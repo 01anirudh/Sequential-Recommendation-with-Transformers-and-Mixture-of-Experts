@@ -262,13 +262,51 @@ def run_single(model_name, dataset, pretrained_file='', resume='', checkpoint_fr
             ckpt = torch.load(ckpt_path, map_location=config['device'])
             trainer.model.load_state_dict(ckpt['model_state_dict'])
         test_result = trainer.evaluate(test_data, load_best_model=False, show_progress=config['show_progress'])
-    
+
+    # ── PER-USER NDCG@10 SAVE (for exact p-value computation) ────
+    try:
+        import math, numpy as np
+        trainer.model.eval()
+        per_user_ndcg = []
+
+        with torch.no_grad():
+            for batch in test_data:
+                # RecBole FullSortEvalDataLoader yields (interaction, ...) tuples
+                interaction = batch[0] if isinstance(batch, tuple) else batch
+                interaction = interaction.to(config['device'])
+                scores = trainer.model.full_sort_predict(interaction)   # (B, n_items)
+                pos_items = interaction[trainer.model.POS_ITEM_ID]      # (B,)
+                sorted_idx = torch.argsort(scores, dim=1, descending=True)
+
+                for b in range(pos_items.shape[0]):
+                    pid = pos_items[b].item()
+                    hits = (sorted_idx[b] == pid).nonzero(as_tuple=True)[0]
+                    if len(hits) == 0:
+                        per_user_ndcg.append(0.0)
+                    else:
+                        rank = hits[0].item() + 1          # 1-indexed
+                        per_user_ndcg.append(1.0 / math.log2(rank + 1) if rank <= 10 else 0.0)
+
+        per_user_ndcg = np.array(per_user_ndcg)
+        scores_dir = "pvalue_scores"
+        os.makedirs(scores_dir, exist_ok=True)
+        # Use only the top-level checkpoint dir (not the extended subpath)
+        suffix = checkpoint_dir.split('/')[0].split('\\')[0] if checkpoint_dir else config['model']
+        suffix = suffix.replace("/", "_").replace("\\", "_")
+        score_path = os.path.join(scores_dir, f"{suffix}_{config['dataset']}_ndcg10.npy")
+        np.save(score_path, per_user_ndcg)
+        logger.info(f"📁 Per-user NDCG@10 saved → {score_path}  (n={len(per_user_ndcg)}, mean={per_user_ndcg.mean():.4f})")
+    except Exception as e:
+        import traceback
+        logger.warning(f"⚠️  Could not save per-user NDCG scores: {e}")
+        logger.warning(traceback.format_exc())
+
     # PAPER RESULTS
     logger.info("="*80)
     logger.info(set_color('🏆 BEST VALIDATION', 'yellow') + f': {best_valid_result}')
     logger.info(set_color('📊 FINAL TEST', 'yellow') + f': {test_result}')
     logger.info("="*80)
-    
+
     return config['model'], config['dataset'], {
         'best_valid_score': best_valid_score,
         'valid_score_bigger': config['valid_metric_bigger'],
@@ -286,10 +324,20 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_dir', type=str, default=None, help='custom checkpoint dir')
     parser.add_argument('--skip-initial-checkpoint', action='store_true')
     args, unparsed = parser.parse_known_args()
-    print(args)
+    print("Parsed Args:", args)
+    
+    # Extract custom ablation flags (e.g. --use_deep_moe=False)
+    custom_kwargs = {}
+    for arg in unparsed:
+        if arg.startswith('--') and '=' in arg:
+            key, val = arg[2:].split('=', 1)
+            custom_kwargs[key] = val
+            
+    print("Custom Kwargs correctly captured:", custom_kwargs)
     
     run_single(
         args.m, args.d, args.p, args.resume,
         checkpoint_dir=args.checkpoint_dir,
-        skip_initial_checkpoint=args.skip_initial_checkpoint
+        skip_initial_checkpoint=args.skip_initial_checkpoint,
+        **custom_kwargs
     )

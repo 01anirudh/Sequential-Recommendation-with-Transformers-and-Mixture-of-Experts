@@ -98,6 +98,27 @@ ipython_config.py
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
+
+# Project specific ignores
+
+# Logs
+dataset/logs/
+
+# Checkpoints
+checkpoints*/
+
+# P-value scores
+pvalue_scores/
+
+# Error files
+*.err
+
+# IDE
+.vscode/
+
+# OS specific
+Thumbs.db
+Desktop.ini
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 #poetry.lock
 
@@ -127,6 +148,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Batch run scripts
+run_*.sh
 
 # Spyder project settings
 .spyderproject
@@ -162,3 +186,8 @@ cython_debug/
 seq_rec_results/log_tensorboard/
 seq_rec_results/saved/
 seq_rec_results/dataset/processed/
+
+compute_pvalues.py
+run_with_checkpoints.py
+utils.py
+

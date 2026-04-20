@@ -27,6 +27,11 @@ def parse_args():
     parser.add_argument('--device', type=str, default='cuda:0')
     parser.add_argument('--plm', type=str, default='hyp1231/blair-roberta-base')
     parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--min_seq_len', type=int, default=3,
+                        help='Minimum user sequence length. '
+                             '3 = original (full train/valid/test for all users). '
+                             '2 = users with >=2 items (no train entry when len==2). '
+                             '1 = all users (only test entry when len==1).')
     return parser.parse_args()
 
 
@@ -65,7 +70,7 @@ def download_file(url, local_path):
         raise e
 
 
-def load_and_process_amazon_data(domain, data_dir="data"):
+def load_and_process_amazon_data(domain, min_seq_len=3, data_dir="data"):
     print(f"Processing Review Data for {domain}...")
     check_path(data_dir)
     
@@ -79,7 +84,7 @@ def load_and_process_amazon_data(domain, data_dir="data"):
     df = pd.read_json(local_path, lines=True)
     
     if 'timestamp' in df.columns:
-        df['timestamp'] = df['timestamp']
+        pass  # already named correctly
     elif 'sortTimestamp' in df.columns:
         df['timestamp'] = df['sortTimestamp']
     elif 'unixReviewTime' in df.columns:
@@ -93,16 +98,43 @@ def load_and_process_amazon_data(domain, data_dir="data"):
     
     train_data, valid_data, test_data = [], [], []
     
+    print(f"Splitting Data (min_seq_len={min_seq_len})...")
+    skipped = 0
     for _, row in tqdm(grouped.iterrows(), total=len(grouped), desc="Splitting Data"):
         user = row['user_id']
         items = row['parent_asin']
         
-        if len(items) < 3: continue
-            
-        test_data.append({'user_id': user, 'parent_asin': items[-1], 'history': ' '.join(items[:-1])})
-        valid_data.append({'user_id': user, 'parent_asin': items[-2], 'history': ' '.join(items[:-2])})
-        train_data.append({'user_id': user, 'parent_asin': items[-3], 'history': ' '.join(items[:-3])})
+        if len(items) < min_seq_len:
+            skipped += 1
+            continue
 
+        # Test split: always possible when len >= 1
+        # history must be non-empty → need len >= 2 so items[:-1] is non-empty
+        if len(items) >= 2:
+            test_data.append({
+                'user_id': user,
+                'parent_asin': items[-1],
+                'history': ' '.join(items[:-1])
+            })
+
+        # Valid split: need len >= 3 so items[:-2] is non-empty (history of >=1 item)
+        if len(items) >= 3:
+            valid_data.append({
+                'user_id': user,
+                'parent_asin': items[-2],
+                'history': ' '.join(items[:-2])
+            })
+
+        # Train split: need len >= 4 so items[:-3] is non-empty (history of >=1 item)
+        if len(items) >= 4:
+            train_data.append({
+                'user_id': user,
+                'parent_asin': items[-3],
+                'history': ' '.join(items[:-3])
+            })
+
+    print(f"Skipped {skipped} users with < {min_seq_len} interactions")
+    print(f"Split sizes → train: {len(train_data)}, valid: {len(valid_data)}, test: {len(test_data)}")
 
     return DatasetDict({
         'train': Dataset.from_list(train_data),
@@ -236,7 +268,7 @@ if __name__ == '__main__':
     args = parse_args()
 
 
-    datasets = load_and_process_amazon_data(args.domain)
+    datasets = load_and_process_amazon_data(args.domain, min_seq_len=args.min_seq_len)
     
     item2meta = process_meta(args)
 

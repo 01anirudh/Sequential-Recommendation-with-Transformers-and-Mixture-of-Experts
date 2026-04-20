@@ -183,3 +183,13 @@ class E5RecDataset(UniSRecDataset):
 class LLaMARecDataset(UniSRecDataset):
     """Dataset for LLaMARec - LLaMA-3-8B"""
     pass
+
+
+class UniSRecImprovedDataset(UniSRecDataset):
+    """Dataset for UniSRecImproved - uses same PLM embedding loading as UniSRec"""
+    pass
+
+
+class BlairRecDataset(UniSRecDataset):
+    """Dataset for BlairRec"""
+    pass

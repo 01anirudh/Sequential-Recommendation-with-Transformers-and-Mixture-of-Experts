@@ -5,6 +5,11 @@ from recbole.data.utils import create_dataset as create_recbole_dataset
 
 def get_model(model_name):
     model_file_name = model_name.lower()
+    
+    # Handle specific model filenames that don't match the lowercase class name exactly
+    if model_name == 'UniSRecImproved':
+        model_file_name = 'unisrec_improved'
+        
     module_path = f'model.{model_file_name}'
     if importlib.util.find_spec(module_path, __name__):
         model_module = importlib.import_module(module_path, __name__)
